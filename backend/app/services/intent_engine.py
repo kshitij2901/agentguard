@@ -12,10 +12,34 @@ without touching the interceptor or any route.
 Implements: IntentEngineInterface
 """
 
+import math
 import re
+from collections import Counter
 from typing import Optional, Dict, Any, List
 
 from app.services.interfaces import IntentEngineInterface
+
+
+def _vectorize_text(text: str) -> Dict[str, float]:
+    tokens = re.findall(r"\w+", text.lower())
+    if not tokens:
+        return {}
+    vec = Counter(tokens)
+    for i in range(len(tokens) - 1):
+        vec[f"{tokens[i]}_{tokens[i+1]}"] += 1.0
+    return dict(vec)
+
+
+def _cosine_similarity(vec1: Dict[str, float], vec2: Dict[str, float]) -> float:
+    if not vec1 or not vec2:
+        return 0.0
+    intersection = set(vec1.keys()) & set(vec2.keys())
+    dot = sum(vec1[k] * vec2[k] for k in intersection)
+    mag1 = math.sqrt(sum(v ** 2 for v in vec1.values()))
+    mag2 = math.sqrt(sum(v ** 2 for v in vec2.values()))
+    if mag1 == 0 or mag2 == 0:
+        return 0.0
+    return min(1.0, max(0.0, dot / (mag1 * mag2)))
 
 
 # ---------------------------------------------------------------------------
@@ -112,8 +136,16 @@ class HeuristicIntentEngine(IntentEngineInterface):
         action_score = _ACTION_BASE_RELEVANCE.get(action_type, 0.50)
         suspicion_penalty = self._suspicion_penalty(target, action_type)
 
+        # Tier 2: Vector Cosine Similarity
+        vec_goal = _vectorize_text(task_goal)
+        vec_action = _vectorize_text(f"{target} {description or ''}")
+        cosine_sim = _cosine_similarity(vec_goal, vec_action)
+
+        # Blend keyword alignment with vector cosine similarity
+        semantic_blended = (keyword_score * 0.60) + (cosine_sim * 0.40)
+
         raw = (
-            keyword_score * 0.40
+            semantic_blended * 0.40
             + path_score * 0.25
             + action_score * 0.20
             + 0.15  # base contribution
@@ -122,10 +154,42 @@ class HeuristicIntentEngine(IntentEngineInterface):
         score = max(0.0, min(1.0, score))
         score_percent = int(score * 100)
 
+        # Tier 3: Consequence Simulation & Blast Radius
+        destructive_potential = 9 if re.search(r"rm\s+-|drop\s+table|delete|chmod\s+777", target, re.I) else (4 if action_type == "FILE_WRITE" else 1)
+        external_egress = bool(re.search(r"https?://|\.com|\.org|\d{1,3}\.\d{1,3}", target, re.I))
+        scope_breach = path_score < 0.5 and len(allowed_paths) > 0
+        blast_score = int(
+            (destructive_potential * 5)
+            + (25 if external_egress else 0)
+            + (25 if scope_breach else 0)
+            + (int(suspicion_penalty * 40))
+        )
+        blast_level = "CRITICAL" if blast_score >= 65 else ("HIGH" if blast_score >= 35 else "CONTAINED")
+
+        tier_analysis = {
+            "tier1_ast_pass": suspicion_penalty < 0.5,
+            "tier1_suspicion_penalty": round(suspicion_penalty, 2),
+            "tier2_cosine_similarity": round(cosine_sim, 4),
+            "tier2_semantic_score": round(semantic_blended, 4),
+            "tier2_method": "VECTOR_COSINE_SIMILARITY",
+            "tier3_blast_radius": {
+                "scope_breach": scope_breach,
+                "destructive_impact": destructive_potential,
+                "external_egress": external_egress,
+                "blast_score": min(100, blast_score),
+                "blast_level": blast_level,
+            },
+        }
+
         reason = self._generate_reason(
             task_goal, target, score, keyword_score, path_score, suspicion_penalty
         )
-        return {"score": round(score, 4), "score_percent": score_percent, "reason": reason}
+        return {
+            "score": round(score, 4),
+            "score_percent": score_percent,
+            "reason": reason,
+            "tier_analysis": tier_analysis,
+        }
 
     # ------------------------------------------------------------------
     # Private helpers

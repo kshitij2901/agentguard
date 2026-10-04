@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import type { AuditEntry, Stats, Task } from '../types';
+import type { AuditEntry, Stats, Task, ChainVerification, DecisionType } from '../types';
 import { auditApi, demoApi, tasksApi } from '../services/api';
 import { Header } from '../components/Header';
 import { CurrentIntentPanel } from '../components/CurrentIntentPanel';
@@ -7,12 +7,14 @@ import { ActionAnalysisPanel } from '../components/ActionAnalysisPanel';
 import { StatsPanel } from '../components/StatsPanel';
 import { DemoControls } from '../components/DemoControls';
 import { ActivityFeed } from '../components/ActivityFeed';
+import { Web3IntegrityBanner } from '../components/Web3IntegrityBanner';
 
-const POLL_INTERVAL = 2000; // ms
+const POLL_INTERVAL = 3000; // ms
 
 export const Dashboard: React.FC = () => {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [verification, setVerification] = useState<ChainVerification | null>(null);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
@@ -22,27 +24,25 @@ export const Dashboard: React.FC = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [logsRes, statsRes, tasksRes] = await Promise.all([
+      const [logData, statsData, verData, tasks] = await Promise.all([
         auditApi.getLogs(),
         auditApi.getStats(),
-        tasksApi.list().catch(() => ({ data: [] as Task[] })),
+        auditApi.verifyChain().catch(() => null),
+        tasksApi.list().catch(() => [] as Task[]),
       ]);
 
-      const logData = logsRes.data;
       setEntries(logData);
-      setStats(statsRes.data);
+      setStats(statsData);
+      if (verData) setVerification(verData);
 
-      const tasks = tasksRes.data;
       if (tasks && tasks.length > 0) {
-        setCurrentTask(tasks[0]); // most recent active task
+        setCurrentTask(tasks[0]);
       }
 
-      // If no entry is currently selected or user just loaded, default to the latest log entry
       setSelectedEntry((prev) => {
         if (!prev && logData.length > 0) {
           return logData[0];
         }
-        // If current selected entry is in logData, keep it refreshed
         if (prev) {
           const match = logData.find((e) => e.id === prev.id);
           return match || prev;
@@ -53,19 +53,17 @@ export const Dashboard: React.FC = () => {
       setStatsLoading(false);
       setError(null);
     } catch {
-      setError('Cannot reach AgentGuard backend. Make sure it is running on http://localhost:8000');
       setStatsLoading(false);
     }
   }, []);
 
-  // Poll every 2 seconds for live telemetry
   useEffect(() => {
     fetchData();
     const id = setInterval(fetchData, POLL_INTERVAL);
     return () => clearInterval(id);
   }, [fetchData]);
 
-  const runDemo = async (name: string, fn: () => Promise<{ data: { task_id?: string; scenario?: string } }>) => {
+  const runDemo = async (name: string, fn: () => Promise<{ task_id?: string; scenario?: string }>) => {
     setDemoLoading(true);
     setActiveScenario(name);
     setError(null);
@@ -73,21 +71,34 @@ export const Dashboard: React.FC = () => {
       const res = await fn();
       await fetchData();
 
-      // If scenario returned task_id, fetch that specific task
-      if (res.data?.task_id) {
+      if (res.task_id) {
         try {
-          const tRes = await tasksApi.get(res.data.task_id);
-          setCurrentTask(tRes.data);
+          const tRes = await tasksApi.get(res.task_id);
+          setCurrentTask(tRes);
         } catch {
           // ignore
         }
       }
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { detail?: string } }; message?: string };
-      setError(err.response?.data?.detail || err.message || 'Demo execution failed');
+      const err = e as { message?: string };
+      setError(err.message || 'Demo execution failed');
     } finally {
       setDemoLoading(false);
     }
+  };
+
+  const handleOverrideDecision = (entryId: string, newDecision: DecisionType) => {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === entryId
+          ? {
+              ...e,
+              decision: newDecision,
+              reason: `[HUMAN OVERRIDE] Decision updated to ${newDecision} by developer in dashboard.`,
+            }
+          : e
+      )
+    );
   };
 
   return (
@@ -104,29 +115,37 @@ export const Dashboard: React.FC = () => {
             </div>
             <button
               onClick={() => fetchData()}
-              className="px-3 py-1 bg-rose-900/60 hover:bg-rose-800 rounded-lg text-white font-semibold transition-colors"
+              className="px-3 py-1 bg-rose-900/60 hover:bg-rose-800 rounded-lg text-white font-semibold transition-colors cursor-pointer"
             >
               Retry
             </button>
           </div>
         )}
 
-        {/* 1. Current User Intent Panel */}
+        {/* 1. Web3 Cryptographic Proof-of-Action Banner */}
+        <Web3IntegrityBanner
+          verification={verification}
+          onRefresh={fetchData}
+        />
+
+        {/* 2. Current User Intent Panel */}
         <CurrentIntentPanel
           currentTask={currentTask}
           scenarioName={activeScenario}
         />
 
-        {/* 2. Demo Controls */}
+        {/* 3. Demo Controls with 5 Attack Vectors */}
         <DemoControls
           onRunSafe={() => runDemo('Safe Demo', demoApi.runSafe)}
           onRunCredentialTheft={() => runDemo('Credential Theft Demo', demoApi.runCredentialTheft)}
           onRunPromptInjection={() => runDemo('Prompt Injection Demo', demoApi.runPromptInjection)}
+          onRunSlopsquatting={() => runDemo('Slopsquatting Supply-Chain', demoApi.runSlopsquatting)}
+          onRunScopeCreep={() => runDemo('Scope Creep & Blast Radius', demoApi.runScopeCreep)}
           loading={demoLoading}
           activeScenario={activeScenario}
         />
 
-        {/* 3. Hero Security Grid: Action Analysis (Left/Hero) + Live Activity (Right) */}
+        {/* 4. Hero Security Grid: Action Analysis + Live Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Action Analysis Panel (Hero Inspector) */}
           <div className="lg:col-span-6 space-y-4">
@@ -165,7 +184,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* 4. Telemetry Overview Stats */}
+        {/* 5. Telemetry Overview Stats */}
         <section className="pt-2">
           <h3 className="text-slate-400 text-xs uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5">
             <span>📊</span> Session Telemetry
@@ -173,26 +192,32 @@ export const Dashboard: React.FC = () => {
           <StatsPanel stats={stats} loading={statsLoading} />
         </section>
 
-        {/* 5. Pipeline Architecture Banner */}
+        {/* 6. Pipeline Architecture Banner */}
         <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-md">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
               <span className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-                AgentGuard Pipeline:
+                AgentGuard Architecture:
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 font-mono">
-              <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Agent Action</span>
+              <span className="bg-emerald-950 px-2 py-0.5 rounded text-emerald-300 font-semibold border border-emerald-800">
+                MCP Reverse Proxy
+              </span>
               <span className="text-slate-600">→</span>
-              <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Rule Engine</span>
+              <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Rule Engine (AST)</span>
               <span className="text-slate-600">→</span>
-              <span className="bg-blue-950 px-2 py-0.5 rounded text-blue-300 font-bold border border-blue-800">Intent Engine</span>
+              <span className="bg-blue-950 px-2 py-0.5 rounded text-blue-300 font-bold border border-blue-800">
+                Vector Cosine Intent
+              </span>
               <span className="text-slate-600">→</span>
-              <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Risk Engine</span>
+              <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Blast Radius Analyzer</span>
               <span className="text-slate-600">→</span>
               <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Policy Engine</span>
               <span className="text-slate-600">→</span>
-              <span className="bg-emerald-950 px-2 py-0.5 rounded text-emerald-300 font-bold border border-emerald-800">Decision</span>
+              <span className="bg-purple-950 px-2 py-0.5 rounded text-purple-300 font-bold border border-purple-800">
+                Web3 SHA-256 Ledger
+              </span>
             </div>
           </div>
         </div>

@@ -124,6 +124,26 @@ DANGEROUS_COMMAND_RULES: List[Rule] = [
         action_types=["COMMAND_EXECUTE"],
         patterns=[r"\bpip\s+install\b", r"\bnpm\s+install\b", r"\bapt(?:-get)?\s+install\b"],
     ),
+    Rule(
+        rule_id="DANGEROUS_BLAST_RADIUS_DELETION",
+        severity="CRITICAL",
+        reason="Unbounded destructive deletion outside workspace boundary (critical blast radius breach)",
+        action_types=["COMMAND_EXECUTE"],
+        patterns=[r"\brm\b\s+-[a-zA-Z]*rf\s+(?:/|~|\.\.|\*|/\*|\$HOME)"],
+    ),
+]
+
+SUPPLY_CHAIN_RULES: List[Rule] = [
+    Rule(
+        rule_id="SUPPLY_CHAIN_TYPOSQUAT",
+        severity="CRITICAL",
+        reason="Potential typosquatted or slopsquatted package detected in install command",
+        action_types=["COMMAND_EXECUTE"],
+        patterns=[
+            r"\b(?:pip\s+install|npm\s+i(?:nstall)?|yarn\s+add)\s+.*(?:\breqeusts\b|\bcoloramaa\b|\bexpresss\b|\blodashe\b|\bchokidarr\b|\bcross-envv\b|\bcryptographyy\b|\burllib4\b|\bbeutifulsoup\b|\bpydanticc\b|\bfastapii\b|\bweb3pyy\b)",
+            r"(?:--trusted-host\s+\S*evil|--insecure\s+http://)",
+        ],
+    ),
 ]
 
 NETWORK_RULES: List[Rule] = [
@@ -141,6 +161,15 @@ NETWORK_RULES: List[Rule] = [
         action_types=["NETWORK_REQUEST", "COMMAND_EXECUTE"],
         patterns=[r"exfil", r"collect\?", r"steal", r"upload.*secret", r"evil\.com", r"attacker\.com"],
     ),
+    Rule(
+        rule_id="INDIRECT_PROMPT_INJECTION_EXFIL",
+        severity="CRITICAL",
+        reason="Indirect prompt injection: outbound credential or token transmission",
+        action_types=["NETWORK_REQUEST", "COMMAND_EXECUTE"],
+        patterns=[
+            r"(?:curl|wget)\b.*(?:credentials|\.env|id_rsa|token=|api_key|secret).*(?:https?://|evil|attacker|webhook|requestbin)",
+        ],
+    ),
 ]
 
 GIT_RULES: List[Rule] = [
@@ -156,6 +185,7 @@ GIT_RULES: List[Rule] = [
 ALL_RULES: List[Rule] = (
     SENSITIVE_FILE_RULES
     + DANGEROUS_COMMAND_RULES
+    + SUPPLY_CHAIN_RULES
     + NETWORK_RULES
     + GIT_RULES
 )

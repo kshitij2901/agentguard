@@ -39,6 +39,25 @@ export interface AuditEntry {
   decision: DecisionType;
   reason: string | null;
   execution_result: string | null;
+  entry_index?: number;
+  prev_hash?: string | null;
+  entry_hash?: string | null;
+  merkle_root?: string | null;
+  anchor_tx_hash?: string | null;
+  tier_analysis?: {
+    tier1_ast_pass?: boolean;
+    tier1_suspicion_penalty?: number;
+    tier2_cosine_similarity?: number;
+    tier2_semantic_score?: number;
+    tier2_method?: string;
+    tier3_blast_radius?: {
+      scope_breach?: boolean;
+      destructive_impact?: number;
+      external_egress?: boolean;
+      blast_score?: number;
+      blast_level?: string;
+    };
+  } | null;
 }
 
 export interface Stats {
@@ -48,6 +67,20 @@ export interface Stats {
   approval_required: number;
   blocked: number;
   average_risk: number;
+  chain_valid?: boolean;
+  merkle_root?: string;
+  latest_anchor_tx?: string;
+}
+
+export interface ChainVerification {
+  is_valid: boolean;
+  total_blocks: number;
+  chain_status: string;
+  merkle_root: string;
+  latest_anchor_tx: string | null;
+  verified_blocks: number;
+  integrity_percent: number;
+  failed_at?: string | null;
 }
 
 export interface DemoActionResult {
@@ -61,6 +94,8 @@ export interface DemoActionResult {
   rule_matched: boolean;
   rule_id: string | null;
   execution_result: string | null;
+  block_hash?: string;
+  tier_analysis?: AuditEntry['tier_analysis'];
 }
 
 export interface DemoResult {

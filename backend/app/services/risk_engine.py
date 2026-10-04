@@ -109,9 +109,12 @@ class DefaultRiskEngine(RiskEngineInterface):
         )
 
         # --- Escalation boost ---
-        if severity == "CRITICAL" and intent_score < 0.30:
-            raw = raw * 1.20
-            reasons.append("Critical security violation with very low intent alignment")
+        if severity == "CRITICAL":
+            if intent_score < 0.60:
+                raw = max(raw * 1.35, 88.0)
+                reasons.append("Critical security violation with insufficient task authorization")
+            else:
+                raw = raw * 1.15
 
         risk_score = int(min(100, max(0, raw)))
         risk_level = _risk_level_for(risk_score)

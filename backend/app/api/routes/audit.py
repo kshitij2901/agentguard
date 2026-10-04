@@ -30,6 +30,12 @@ def _to_dict(log) -> dict:
         "decision": log.decision,
         "reason": log.reason,
         "execution_result": log.execution_result,
+        "entry_index": getattr(log, "entry_index", 0),
+        "prev_hash": getattr(log, "prev_hash", None),
+        "entry_hash": getattr(log, "entry_hash", None),
+        "merkle_root": getattr(log, "merkle_root", None),
+        "anchor_tx_hash": getattr(log, "anchor_tx_hash", None),
+        "tier_analysis": getattr(log, "tier_analysis", {}) or {},
     }
 
 
@@ -43,6 +49,34 @@ def get_audit_log(
     """Return audit log entries, newest first."""
     logs = audit_service.get_logs(db=db, task_id=task_id, limit=limit)
     return [_to_dict(log) for log in logs]
+
+
+@router.get("/audit/verify-chain")
+def verify_audit_chain(
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service),
+):
+    """
+    Cryptographically verify the entire SHA-256 audit hash chain.
+    Returns proof of action integrity, Merkle root, and anchor transaction hash.
+    """
+    return audit_service.verify_chain(db=db)
+
+
+@router.get("/audit/merkle-root")
+def get_merkle_root(
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service),
+):
+    """Return current Merkle root and simulated EVM anchor status."""
+    res = audit_service.verify_chain(db=db)
+    return {
+        "merkle_root": res["merkle_root"],
+        "total_blocks": res["total_blocks"],
+        "latest_anchor_tx": res["latest_anchor_tx"],
+        "network": "Polygon Amoy / Arbitrum Sepolia (Simulated Proof-of-Action)",
+        "chain_status": res["chain_status"],
+    }
 
 
 @router.get("/stats")
