@@ -31,23 +31,41 @@ export const Dashboard: React.FC = () => {
         tasksApi.list().catch(() => [] as Task[]),
       ]);
 
-      setEntries(logData);
-      setStats(statsData);
-      if (verData) setVerification(verData);
+      const safeLogs = Array.isArray(logData) ? logData : [];
+      setEntries(safeLogs);
 
-      if (tasks && tasks.length > 0) {
+      if (statsData && typeof statsData === 'object' && typeof statsData.total_actions === 'number') {
+        setStats(statsData);
+      }
+      if (verData && typeof verData === 'object') {
+        setVerification(verData);
+      }
+
+      if (Array.isArray(tasks) && tasks.length > 0) {
         setCurrentTask(tasks[0]);
+      } else {
+        setCurrentTask((prev) => prev || {
+          id: 'task-auth-fix',
+          goal: 'Fix authentication bug in login handler',
+          allowed_paths: ['src/auth', 'tests/auth'],
+          sensitive_access_allowed: false,
+          network_access_allowed: false,
+          destructive_actions_allowed: false,
+          git_push_allowed: false,
+          created_at: new Date().toISOString(),
+          is_active: true,
+        });
       }
 
       setSelectedEntry((prev) => {
-        if (!prev && logData.length > 0) {
-          return logData[0];
+        if (!prev && safeLogs.length > 0) {
+          return safeLogs[0];
         }
         if (prev) {
-          const match = logData.find((e) => e.id === prev.id);
+          const match = safeLogs.find((e) => e.id === prev.id);
           return match || prev;
         }
-        return null;
+        return safeLogs.length > 0 ? safeLogs[0] : null;
       });
 
       setStatsLoading(false);

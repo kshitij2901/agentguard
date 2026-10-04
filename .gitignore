@@ -35,3 +35,5 @@ Thumbs.db
 *.db
 *.sqlite3
 .vercel/
+.vercel
+.env*
