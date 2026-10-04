@@ -9,8 +9,11 @@
 [![React](https://img.shields.io/badge/React-18.3-61DAFB.svg)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.2-blue.svg)](https://www.typescriptlang.org/)
 [![Model Context Protocol](https://img.shields.io/badge/MCP-JSON--RPC%202.0-blueviolet.svg)](https://modelcontextprotocol.io)
-[![Web3 SHA-256 Ledger](https://img.shields.io/badge/Web3-Merkle%20Proof--of--Action-purple.svg)](#web3-tamper-proof-ledger)
-[![Vercel Deployment](https://img.shields.io/badge/Vercel-Live%20Website-000000?style=for-the-badge&logo=vercel&logoColor=white)](#deployment)
+[![Web3 SHA-256 Ledger](https://img.shields.io/badge/Web3-Merkle%20Proof--of--Action-purple.svg)](#4-web3-cryptographic-proof-of-action-ledger)
+[![Vercel Deployment](https://img.shields.io/badge/Vercel-Live%20Website-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://agentguard-one-ruddy.vercel.app)
+
+**Live Production Website:** [https://agentguard-one-ruddy.vercel.app](https://agentguard-one-ruddy.vercel.app)  
+**GitHub Repository:** [https://github.com/kshitij2901/agentguard](https://github.com/kshitij2901/agentguard)
 
 ---
 
