@@ -131,22 +131,22 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500 selection:text-white pb-12">
+    <div className="min-h-screen bg-black text-white font-mono selection:bg-white selection:text-black pb-12">
       <Header />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Error notification */}
         {error && (
-          <div className="bg-rose-950/80 border border-rose-700/80 rounded-2xl px-5 py-3.5 text-rose-300 text-xs flex items-center justify-between shadow-lg">
-            <div className="flex items-center gap-2.5">
-              <span className="text-base">⚠️</span>
-              <span>{error}</span>
+          <div className="bg-black border border-white p-3 text-xs text-white flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-2">
+              <span className="font-bold">[!]</span>
+              <span>ERROR: {error}</span>
             </div>
             <button
               onClick={() => fetchData()}
-              className="px-3 py-1 bg-rose-900/60 hover:bg-rose-800 rounded-lg text-white font-semibold transition-colors cursor-pointer"
+              className="px-2.5 py-1 bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-colors cursor-pointer"
             >
-              Retry
+              $ retry
             </button>
           </div>
         )}
@@ -177,14 +177,12 @@ export const Dashboard: React.FC = () => {
         {/* 4. Hero Security Grid: Action Analysis + Live Activity */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Action Analysis Panel (Hero Inspector) */}
-          <div className="lg:col-span-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-slate-400 text-xs uppercase tracking-widest font-bold flex items-center gap-1.5">
-                <span>🔍</span> Selected Action Inspection
-              </h3>
+          <div className="lg:col-span-6 space-y-2">
+            <div className="flex items-center justify-between text-xs text-zinc-500 font-bold px-1">
+              <span>&gt; [01_ACTION_INSPECTION]</span>
               {selectedEntry && (
-                <span className="text-[11px] text-slate-500 font-mono">
-                  ID: {selectedEntry.id.slice(0, 8)}...
+                <span className="text-[11px] text-zinc-500 font-mono">
+                  REF: {selectedEntry.id.slice(0, 8)}
                 </span>
               )}
             </div>
@@ -196,13 +194,11 @@ export const Dashboard: React.FC = () => {
           </div>
 
           {/* Activity Feed Table */}
-          <div className="lg:col-span-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-slate-400 text-xs uppercase tracking-widest font-bold flex items-center gap-1.5">
-                <span>📡</span> Live Security Stream
-              </h3>
-              <span className="text-[11px] text-slate-500">
-                Click any row to inspect
+          <div className="lg:col-span-6 space-y-2">
+            <div className="flex items-center justify-between text-xs text-zinc-500 font-bold px-1">
+              <span>&gt; [02_SYS_LOG_STREAM]</span>
+              <span className="text-[11px] text-zinc-500 font-normal">
+                Click row to inspect trace
               </span>
             </div>
             <ActivityFeed
@@ -216,37 +212,41 @@ export const Dashboard: React.FC = () => {
 
         {/* 5. Telemetry Overview Stats */}
         <section className="pt-2">
-          <h3 className="text-slate-400 text-xs uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5">
-            <span>📊</span> Session Telemetry
-          </h3>
+          <div className="text-zinc-500 text-xs font-bold mb-2 px-1">
+            &gt; [03_SESSION_TELEMETRY_INDEX]
+          </div>
           <StatsPanel stats={stats} loading={statsLoading} />
         </section>
 
-        {/* 6. Pipeline Architecture Banner */}
-        <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 shadow-md">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
-                AgentGuard Architecture:
-              </span>
+        {/* 6. Terminal ASCII Architecture Pipeline Banner */}
+        <div className="bg-black border border-zinc-800 p-3.5 text-xs text-zinc-400 font-mono shadow-sm">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+            <div className="text-zinc-300 font-bold text-[11px] uppercase">
+              $ AGENTGUARD_ARCHITECTURE_PIPELINE:
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 font-mono">
-              <span className="bg-emerald-950 px-2 py-0.5 rounded text-emerald-300 font-semibold border border-emerald-800">
-                MCP Reverse Proxy
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-400 font-mono">
+              <span className="bg-white text-black font-bold px-1.5 py-0.5">
+                MCP_PROXY
               </span>
-              <span className="text-slate-600">→</span>
-              <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Rule Engine (AST)</span>
-              <span className="text-slate-600">→</span>
-              <span className="bg-blue-950 px-2 py-0.5 rounded text-blue-300 font-bold border border-blue-800">
-                Vector Cosine Intent
+              <span className="text-zinc-600">&rarr;</span>
+              <span className="bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 text-zinc-200">
+                AST_RULES
               </span>
-              <span className="text-slate-600">→</span>
-              <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Blast Radius Analyzer</span>
-              <span className="text-slate-600">→</span>
-              <span className="bg-slate-800 px-2 py-0.5 rounded text-slate-300">Policy Engine</span>
-              <span className="text-slate-600">→</span>
-              <span className="bg-purple-950 px-2 py-0.5 rounded text-purple-300 font-bold border border-purple-800">
-                Web3 SHA-256 Ledger
+              <span className="text-zinc-600">&rarr;</span>
+              <span className="bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 text-zinc-200">
+                COSINE_INTENT
+              </span>
+              <span className="text-zinc-600">&rarr;</span>
+              <span className="bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 text-zinc-200">
+                BLAST_RADIUS
+              </span>
+              <span className="text-zinc-600">&rarr;</span>
+              <span className="bg-zinc-900 border border-zinc-700 px-1.5 py-0.5 text-zinc-200">
+                POLICY_MATRIX
+              </span>
+              <span className="text-zinc-600">&rarr;</span>
+              <span className="bg-white text-black font-bold px-1.5 py-0.5">
+                WEB3_LEDGER
               </span>
             </div>
           </div>

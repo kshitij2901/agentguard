@@ -8,26 +8,11 @@ interface Props {
   loading: boolean;
 }
 
-const DECISION_STYLES: Record<DecisionType, string> = {
-  ALLOW: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40',
-  SANDBOX: 'bg-amber-500/20 text-amber-400 border-amber-500/40',
-  APPROVAL_REQUIRED: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
-  BLOCK: 'bg-rose-500/20 text-rose-400 border-rose-500/40',
-};
-
-const DECISION_ICONS: Record<DecisionType, string> = {
-  ALLOW: '✓ ALLOW',
-  SANDBOX: '📦 SANDBOX',
-  APPROVAL_REQUIRED: '⏳ APPROVAL',
-  BLOCK: '🚫 BLOCK',
-};
-
-const ACTION_ICON: Record<string, string> = {
-  FILE_READ: '📄',
-  FILE_WRITE: '✏️',
-  COMMAND_EXECUTE: '⚙️',
-  NETWORK_REQUEST: '🌐',
-  GIT_OPERATION: '🔀',
+const DECISION_BADGES: Record<DecisionType, { text: string; bg: string }> = {
+  ALLOW: { text: '[✓ ALLOW]', bg: 'bg-white text-black font-bold' },
+  SANDBOX: { text: '[⧖ SANDBOX]', bg: 'bg-zinc-800 text-zinc-200 border border-zinc-600' },
+  APPROVAL_REQUIRED: { text: '[! REVIEW]', bg: 'bg-zinc-900 text-white border border-dashed border-zinc-400' },
+  BLOCK: { text: '[✕ BLOCK]', bg: 'bg-black text-white border border-zinc-400 font-bold' },
 };
 
 function formatTime(ts: string): string {
@@ -38,9 +23,9 @@ function formatTime(ts: string): string {
   }
 }
 
-function truncate(s: string | null, n: number): string {
-  if (!s) return '—';
-  return s.length > n ? s.slice(0, n) + '…' : s;
+function miniAsciiBar(score: number): string {
+  const bars = Math.round((Math.max(0, Math.min(100, score)) / 100) * 8);
+  return '█'.repeat(bars) + '░'.repeat(8 - bars);
 }
 
 export const ActivityFeed: React.FC<Props> = ({
@@ -49,134 +34,106 @@ export const ActivityFeed: React.FC<Props> = ({
   onSelect,
   loading,
 }) => (
-  <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
-    <div className="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between">
+  <div className="bg-black border border-zinc-800 font-mono shadow-xl overflow-hidden">
+    {/* Terminal Header */}
+    <div className="px-4 py-3 border-b border-zinc-900 flex items-center justify-between text-xs bg-zinc-950/80">
       <div>
-        <h3 className="text-white font-bold text-sm flex items-center gap-2">
-          <span>📡</span> Security Activity Feed
+        <h3 className="text-white font-bold flex items-center gap-2">
+          <span>&gt;</span> [AUDIT_STREAM::SYS_LOG]
         </h3>
-        <p className="text-slate-400 text-xs mt-0.5">
-          Live stream of all agent actions evaluated against intent baseline
+        <p className="text-zinc-500 text-[10px] mt-0.5">
+          Real-time intercept log &bull; evaluated against intent baseline
         </p>
       </div>
       <div className="flex items-center gap-2">
         {loading && (
-          <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+          <span className="text-zinc-400 text-[10px] animate-pulse">
+            STREAMING...
+          </span>
         )}
-        <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 text-xs font-mono">
-          {entries.length} events
+        <span className="px-2 py-0.5 bg-zinc-900 border border-zinc-800 text-zinc-300 text-[10px]">
+          {entries.length} EVENTS
         </span>
       </div>
     </div>
 
-    {/* Table header */}
-    <div className="grid grid-cols-12 px-5 py-2.5 bg-slate-950/60 border-b border-slate-800 text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
-      <div className="col-span-2">Time / Type</div>
-      <div className="col-span-4">Agent Action Target</div>
-      <div className="col-span-3 text-center">Intent Alignment</div>
-      <div className="col-span-1 text-center">Risk</div>
-      <div className="col-span-2 text-right">Decision</div>
+    {/* Table Header */}
+    <div className="grid grid-cols-12 px-4 py-2 border-b border-zinc-900 text-[10px] text-zinc-500 uppercase tracking-wider font-bold bg-black">
+      <div className="col-span-2">TIME / TYPE</div>
+      <div className="col-span-4">TARGET RESOURCE</div>
+      <div className="col-span-3 text-center">INTENT ALIGN</div>
+      <div className="col-span-1 text-center">RISK</div>
+      <div className="col-span-2 text-right">DECISION</div>
     </div>
 
     {/* Table Rows */}
-    <div className="divide-y divide-slate-800/60 max-h-[420px] overflow-y-auto">
+    <div className="divide-y divide-zinc-900 max-h-[420px] overflow-y-auto">
       {entries.length === 0 ? (
-        <div className="px-5 py-16 text-center text-slate-500 text-sm">
-          <span className="text-2xl block mb-2">🛡️</span>
-          No actions evaluated yet. Click a demo scenario above to test the security pipeline.
+        <div className="px-4 py-12 text-center text-zinc-500 text-xs">
+          [!] No events recorded. Run a test vector above to populate stream.
         </div>
       ) : (
         entries.map((entry) => {
           const isSelected = entry.id === selectedEntryId;
+          const badge = DECISION_BADGES[entry.decision] || DECISION_BADGES.BLOCK;
           const intent = entry.intent_score ?? 0;
-          const isMisaligned = intent < 40;
-          const isAligned = intent >= 70;
 
           return (
             <div
               key={entry.id}
               onClick={() => onSelect(entry)}
               className={`
-                grid grid-cols-12 px-5 py-3 items-center cursor-pointer transition-all duration-150 group
-                ${isSelected ? 'bg-blue-950/40 border-l-4 border-l-blue-500 pl-4' : 'hover:bg-slate-800/50'}
+                grid grid-cols-12 px-4 py-2.5 items-center cursor-pointer transition-colors text-xs
+                ${
+                  isSelected
+                    ? 'bg-zinc-900 border-l-2 border-white pl-3.5 text-white'
+                    : 'hover:bg-zinc-950 text-zinc-300'
+                }
               `}
             >
               {/* Time & Type */}
-              <div className="col-span-2 flex items-center gap-2">
-                <span className="text-base" title={entry.action_type || ''}>
-                  {ACTION_ICON[entry.action_type || ''] || '📄'}
+              <div className="col-span-2 flex flex-col font-mono">
+                <span className="text-zinc-300 text-[11px]">
+                  {formatTime(entry.timestamp)}
                 </span>
-                <div className="flex flex-col">
-                  <span className="text-slate-400 text-xs font-mono">
-                    {formatTime(entry.timestamp)}
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-mono">
-                    {entry.action_type}
-                  </span>
-                </div>
+                <span className="text-zinc-600 text-[9px] uppercase">
+                  {(entry.action_type || 'ACTION').replace('_', ' ')}
+                </span>
               </div>
 
-              {/* Target & Description */}
-              <div className="col-span-4 pr-2">
-                <div className="text-slate-200 text-xs font-mono font-medium group-hover:text-white transition-colors truncate">
+              {/* Target */}
+              <div className="col-span-4 pr-2 font-mono">
+                <div className="font-semibold truncate text-[11px] text-zinc-200">
                   {entry.action_target}
                 </div>
                 {entry.action_description && (
-                  <div className="text-[11px] text-slate-400 truncate">
+                  <div className="text-[10px] text-zinc-500 truncate">
                     {entry.action_description}
                   </div>
                 )}
               </div>
 
-              {/* Intent Alignment with Mini Bar */}
-              <div className="col-span-3 px-2 flex flex-col items-center justify-center">
-                <div className="flex items-center justify-between w-full max-w-[140px] text-xs font-bold mb-1">
-                  <span className={isAligned ? 'text-emerald-400' : isMisaligned ? 'text-rose-400' : 'text-amber-400'}>
+              {/* Intent Alignment */}
+              <div className="col-span-3 px-1 flex flex-col items-center justify-center font-mono">
+                <div className="flex items-center gap-1.5 text-[10px]">
+                  <span className="text-zinc-400 select-none">[{miniAsciiBar(intent)}]</span>
+                  <span className="font-bold text-white">
                     {entry.intent_score !== null ? `${entry.intent_score}%` : '—'}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-normal">
-                    {isAligned ? 'Aligned' : isMisaligned ? 'Mismatch' : 'Moderate'}
-                  </span>
-                </div>
-                <div className="w-full max-w-[140px] bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${
-                      isAligned
-                        ? 'bg-emerald-400'
-                        : isMisaligned
-                        ? 'bg-rose-500'
-                        : 'bg-amber-400'
-                    }`}
-                    style={{ width: `${Math.max(4, intent)}%` }}
-                  />
                 </div>
               </div>
 
               {/* Risk Score */}
-              <div className="col-span-1 text-center">
-                <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                    (entry.risk_score ?? 0) >= 85
-                      ? 'bg-rose-950/80 text-rose-400 border border-rose-800/80'
-                      : (entry.risk_score ?? 0) >= 60
-                      ? 'bg-orange-950/80 text-orange-400 border border-orange-800/80'
-                      : (entry.risk_score ?? 0) >= 30
-                      ? 'bg-amber-950/80 text-amber-400 border border-amber-800/80'
-                      : 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/80'
-                  }`}
-                >
+              <div className="col-span-1 text-center font-mono">
+                <span className="text-[11px] font-bold text-zinc-200">
                   {entry.risk_score !== null ? entry.risk_score : '—'}
                 </span>
               </div>
 
               {/* Decision Badge */}
-              <div className="col-span-2 flex justify-end">
-                <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-bold border flex items-center gap-1 ${
-                    DECISION_STYLES[entry.decision]
-                  }`}
-                >
-                  {DECISION_ICONS[entry.decision]}
+              <div className="col-span-2 flex justify-end font-mono">
+                <span className={`px-2 py-0.5 text-[10px] ${badge.bg}`}>
+                  {badge.text}
                 </span>
               </div>
             </div>

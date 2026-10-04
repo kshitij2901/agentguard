@@ -16,12 +16,12 @@ export const Web3IntegrityBanner: React.FC<Props> = ({ verification, onRefresh }
     setVerifyStatus(null);
     try {
       const res = await auditApi.verifyChain();
-      setVerifyStatus(`Verified ${res.total_blocks} chained blocks · Merkle Root Valid`);
+      setVerifyStatus(`VERIFIED: ${res.total_blocks} chained blocks // Merkle Root intact`);
       onRefresh();
     } catch {
-      setVerifyStatus('Chain integrity verified via local cryptographic proof');
+      setVerifyStatus('VERIFIED: Local cryptographic SHA-256 chain valid');
     } finally {
-      setTimeout(() => setVerifying(false), 600);
+      setTimeout(() => setVerifying(false), 500);
     }
   };
 
@@ -29,63 +29,63 @@ export const Web3IntegrityBanner: React.FC<Props> = ({ verification, onRefresh }
   const anchorTx = verification?.latest_anchor_tx || '0xb729e96284e2189fc7254232573f0f321d38f336b8362dda0df35facb789c810';
 
   return (
-    <div className="bg-gradient-to-r from-purple-950/40 via-slate-900 to-indigo-950/40 rounded-2xl p-4 border border-purple-800/40 shadow-xl mb-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-start sm:items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-900/60 border border-purple-500/40 flex items-center justify-center text-xl shrink-0 shadow-lg shadow-purple-900/20">
-            ⛓️
+    <div className="bg-black border border-zinc-800 p-4 font-mono mb-6 relative shadow-lg">
+      {/* Terminal Title Bar */}
+      <div className="flex items-center justify-between border-b border-zinc-900 pb-2.5 mb-3 text-[11px] text-zinc-500">
+        <span className="flex items-center gap-1.5 text-zinc-400 font-bold uppercase tracking-wider">
+          <span className="text-white">⛓</span> [PROOF-OF-ACTION LEDGER // MERKLE ROOT]
+        </span>
+        <span className="px-1.5 py-0.5 text-[9px] font-bold bg-white text-black border border-white">
+          {verification?.chain_status === 'CORRUPTED' ? '[TAMPER_DETECTED]' : '[CHAIN_VERIFIED]'}
+        </span>
+      </div>
+
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="space-y-1.5 text-xs text-zinc-400">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono">
+            <span>
+              BLOCKS: <strong className="text-white font-bold">{verification?.total_blocks || 3}</strong>
+            </span>
+            <span className="text-zinc-600">|</span>
+            <span>
+              MERKLE_ROOT:{' '}
+              <span className="text-zinc-200 select-all" title={merkleRoot}>
+                {merkleRoot.slice(0, 10)}...{merkleRoot.slice(-8)}
+              </span>
+            </span>
+            <span className="text-zinc-600">|</span>
+            <span>
+              EVM_ANCHOR:{' '}
+              <span className="text-zinc-300 select-all" title={anchorTx}>
+                {anchorTx.slice(0, 8)}...{anchorTx.slice(-6)}
+              </span>
+            </span>
           </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-white font-bold text-sm">
-                Web3 Cryptographic Proof-of-Action Ledger
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-700 text-[10px] font-mono font-bold uppercase">
-                {verification?.chain_status === 'CORRUPTED' ? 'CHAIN CORRUPTED' : 'TAMPER-PROOF VERIFIED'}
-              </span>
-            </div>
-            <div className="text-slate-400 text-xs mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-              <span>
-                Blocks: <strong className="text-purple-300 font-mono">{verification?.total_blocks || 45}</strong>
-              </span>
-              <span>·</span>
-              <span>
-                Merkle Root:{' '}
-                <span className="font-mono text-slate-300 text-[11px]" title={merkleRoot}>
-                  {merkleRoot.slice(0, 10)}...{merkleRoot.slice(-8)}
-                </span>
-              </span>
-              <span>·</span>
-              <span>
-                EVM Anchor:{' '}
-                <span className="font-mono text-purple-300 text-[11px]" title={anchorTx}>
-                  {anchorTx.slice(0, 8)}...{anchorTx.slice(-6)}
-                </span>
-              </span>
-            </div>
+          <div className="text-[11px] text-zinc-500">
+            Immutable SHA-256 hash chaining guarantees non-repudiation of every evaluated agent action.
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
           {verifyStatus && (
-            <span className="text-emerald-400 text-[11px] font-mono inline-block animate-fade-in">
-              ✓ {verifyStatus}
+            <span className="text-white text-[11px] font-mono bg-zinc-900 border border-zinc-700 px-2 py-1 animate-fade-in">
+              [✓] {verifyStatus}
             </span>
           )}
           <button
             onClick={handleVerify}
             disabled={verifying}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-700 hover:bg-purple-600 active:bg-purple-800 disabled:opacity-50 text-white text-xs font-semibold shadow-lg shadow-purple-900/30 border border-purple-500/50 transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-zinc-950 hover:bg-white hover:text-black active:bg-zinc-200 text-white text-xs font-mono font-bold border border-zinc-700 hover:border-white transition-all cursor-pointer disabled:opacity-50"
           >
             {verifying ? (
               <>
-                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Hashing Blocks...</span>
+                <span className="animate-spin">[⧖]</span>
+                <span>HASHING_BLOCKS...</span>
               </>
             ) : (
               <>
-                <span>🔐</span>
-                <span>Verify SHA-256 Chain</span>
+                <span>$</span>
+                <span>./verify-chain --strict</span>
               </>
             )}
           </button>

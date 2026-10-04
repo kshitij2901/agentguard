@@ -7,91 +7,89 @@ interface Props {
 }
 
 interface StatCardProps {
+  index: string;
   label: string;
   value: number | string;
-  color: string;
   subtext: string;
-  icon: string;
-  border?: string;
+  inverted?: boolean;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ label, value, color, subtext, icon, border = 'border-slate-800' }) => (
-  <div className={`bg-slate-900 rounded-xl p-4 border ${border} flex flex-col justify-between shadow-lg relative overflow-hidden`}>
-    <div className="flex items-center justify-between mb-1">
-      <span className="text-slate-400 text-[11px] font-bold uppercase tracking-wider">{label}</span>
-      <span className="text-base">{icon}</span>
+const StatCard: React.FC<StatCardProps> = ({ index, label, value, subtext, inverted }) => (
+  <div
+    className={`p-3.5 border font-mono flex flex-col justify-between shadow-sm ${
+      inverted
+        ? 'bg-white text-black border-white'
+        : 'bg-black text-white border-zinc-800'
+    }`}
+  >
+    <div className="flex items-center justify-between text-[10px] mb-2">
+      <span className={inverted ? 'text-zinc-600 font-bold' : 'text-zinc-500 font-bold'}>
+        [{index}] {label}
+      </span>
+      <span className={inverted ? 'text-zinc-400' : 'text-zinc-600'}>STAT</span>
     </div>
-    <div className="flex items-baseline gap-2">
-      <div className={`text-2xl font-black tracking-tight ${color}`}>{value}</div>
+    <div className="text-2xl font-bold font-mono tracking-tight my-1">
+      {value}
     </div>
-    <div className="text-[10px] text-slate-500 mt-1">{subtext}</div>
+    <div className={`text-[10px] truncate ${inverted ? 'text-zinc-700' : 'text-zinc-500'}`}>
+      {subtext}
+    </div>
   </div>
 );
 
 export const StatsPanel: React.FC<Props> = ({ stats, loading }) => {
   if (loading || !stats) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 font-mono">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="bg-slate-900 rounded-xl p-4 border border-slate-800 animate-pulse h-24" />
+          <div key={i} className="bg-black border border-zinc-800 p-4 h-24 animate-pulse flex items-center justify-center text-zinc-600 text-xs">
+            [LOADING...]
+          </div>
         ))}
       </div>
     );
   }
 
+  const avgRisk = (stats.average_risk ?? 0).toFixed(1);
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 font-mono">
       <StatCard
-        label="Evaluated"
+        index="01"
+        label="EVALUATED"
         value={stats.total_actions}
-        color="text-white"
-        subtext="Actions through pipeline"
-        icon="⚡"
+        subtext="Total actions passed"
       />
       <StatCard
-        label="Allowed"
+        index="02"
+        label="ALLOWED"
         value={stats.allowed}
-        color="text-emerald-400"
         subtext="Within intent boundary"
-        icon="✓"
-        border="border-emerald-900/30"
       />
       <StatCard
-        label="Sandboxed"
+        index="03"
+        label="SANDBOXED"
         value={stats.sandboxed}
-        color="text-amber-400"
-        subtext="Isolated execution"
-        icon="📦"
-        border="border-amber-900/30"
+        subtext="Isolated in sandbox"
       />
       <StatCard
-        label="Approval"
+        index="04"
+        label="APPROVAL"
         value={stats.approval_required}
-        color="text-orange-400"
-        subtext="Human review required"
-        icon="⏳"
-        border="border-orange-900/30"
+        subtext="Human review needed"
       />
       <StatCard
-        label="Blocked"
+        index="05"
+        label="BLOCKED"
         value={stats.blocked}
-        color="text-rose-400"
-        subtext="Attacks / deviations halted"
-        icon="🚫"
-        border="border-rose-900/30"
+        subtext="Attacks halted"
+        inverted={stats.blocked > 0}
       />
       <StatCard
-        label="Average Risk"
-        value={(stats.average_risk ?? 0).toFixed(1)}
-        color={
-          (stats.average_risk ?? 0) >= 60
-            ? 'text-rose-400'
-            : (stats.average_risk ?? 0) >= 30
-            ? 'text-amber-400'
-            : 'text-emerald-400'
-        }
-        subtext="Composite 0-100 scale"
-        icon="📊"
+        index="06"
+        label="AVG_RISK"
+        value={avgRisk}
+        subtext="0-100 composite index"
       />
     </div>
   );
