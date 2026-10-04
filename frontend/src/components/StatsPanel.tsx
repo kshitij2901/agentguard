@@ -82,11 +82,11 @@ export const StatsPanel: React.FC<Props> = ({ stats, loading }) => {
       />
       <StatCard
         label="Average Risk"
-        value={stats.average_risk.toFixed(1)}
+        value={(stats.average_risk ?? 0).toFixed(1)}
         color={
-          stats.average_risk >= 60
+          (stats.average_risk ?? 0) >= 60
             ? 'text-rose-400'
-            : stats.average_risk >= 30
+            : (stats.average_risk ?? 0) >= 30
             ? 'text-amber-400'
             : 'text-emerald-400'
         }

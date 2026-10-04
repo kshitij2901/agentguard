@@ -4,6 +4,7 @@ import type { AuditEntry, DecisionType, Task } from '../types';
 interface Props {
   entry: AuditEntry | null;
   currentTask: Task | null;
+  onInspectDetails?: (entry: AuditEntry) => void;
 }
 
 const DECISION_META: Record<DecisionType, { badge: string; border: string; bg: string; text: string; icon: string; title: string }> = {
@@ -57,7 +58,7 @@ function getRiskColor(score: number | null): string {
   return 'text-emerald-400';
 }
 
-export const ActionAnalysisPanel: React.FC<Props> = ({ entry, currentTask }) => {
+export const ActionAnalysisPanel: React.FC<Props> = ({ entry, currentTask, onInspectDetails }) => {
   if (!entry) {
     return (
       <div className="bg-slate-900 rounded-2xl border border-slate-800 p-8 text-center flex flex-col items-center justify-center min-h-[360px]">
@@ -291,7 +292,7 @@ export const ActionAnalysisPanel: React.FC<Props> = ({ entry, currentTask }) => 
 
       {/* Gateway Execution Preview */}
       {entry.execution_result && (
-        <div className="bg-slate-950 rounded-xl p-3 border border-slate-800">
+        <div className="bg-slate-950 rounded-xl p-3 border border-slate-800 mb-4">
           <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
             <span>Execution Gateway Dispatch</span>
             <span className={isAllowed ? "text-emerald-400" : "text-rose-400"}>
@@ -303,6 +304,22 @@ export const ActionAnalysisPanel: React.FC<Props> = ({ entry, currentTask }) => 
           </pre>
         </div>
       )}
+
+      {/* Action Footer with Detailed Inspector Trigger */}
+      <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[11px] text-slate-500 font-mono">
+          Block #{entry.entry_index ?? 0} · SHA-256 Hash Chain
+        </span>
+        {onInspectDetails && (
+          <button
+            onClick={() => onInspectDetails(entry)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 hover:text-white text-xs font-semibold transition-all cursor-pointer shadow-sm"
+          >
+            <span>🔍</span>
+            <span>Inspect Full Proof & Human Overrides</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 };

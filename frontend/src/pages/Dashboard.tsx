@@ -8,6 +8,7 @@ import { StatsPanel } from '../components/StatsPanel';
 import { DemoControls } from '../components/DemoControls';
 import { ActivityFeed } from '../components/ActivityFeed';
 import { Web3IntegrityBanner } from '../components/Web3IntegrityBanner';
+import { ActionDetailModal } from '../components/ActionDetailModal';
 
 const POLL_INTERVAL = 3000; // ms
 
@@ -17,6 +18,7 @@ export const Dashboard: React.FC = () => {
   const [verification, setVerification] = useState<ChainVerification | null>(null);
   const [currentTask, setCurrentTask] = useState<Task | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
+  const [modalEntry, setModalEntry] = useState<AuditEntry | null>(null);
   const [demoLoading, setDemoLoading] = useState(false);
   const [statsLoading, setStatsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -117,6 +119,15 @@ export const Dashboard: React.FC = () => {
           : e
       )
     );
+    setSelectedEntry((prev) =>
+      prev && prev.id === entryId
+        ? {
+            ...prev,
+            decision: newDecision,
+            reason: `[HUMAN OVERRIDE] Decision updated to ${newDecision} by developer in dashboard.`,
+          }
+        : prev
+    );
   };
 
   return (
@@ -180,6 +191,7 @@ export const Dashboard: React.FC = () => {
             <ActionAnalysisPanel
               entry={selectedEntry}
               currentTask={currentTask}
+              onInspectDetails={(e) => setModalEntry(e)}
             />
           </div>
 
@@ -239,6 +251,15 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* 7. Action Detail & Web3 Proof Modal with Human Overrides */}
+        {modalEntry && (
+          <ActionDetailModal
+            entry={modalEntry}
+            onClose={() => setModalEntry(null)}
+            onOverrideDecision={handleOverrideDecision}
+          />
+        )}
       </main>
     </div>
   );

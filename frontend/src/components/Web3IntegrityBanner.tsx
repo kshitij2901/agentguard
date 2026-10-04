@@ -68,7 +68,7 @@ export const Web3IntegrityBanner: React.FC<Props> = ({ verification, onRefresh }
 
         <div className="flex items-center gap-2.5 shrink-0">
           {verifyStatus && (
-            <span className="text-emerald-400 text-[11px] font-mono hidden lg:inline animate-fade-in">
+            <span className="text-emerald-400 text-[11px] font-mono inline-block animate-fade-in">
               ✓ {verifyStatus}
             </span>
           )}
